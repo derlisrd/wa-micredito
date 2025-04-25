@@ -9,6 +9,17 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
+const apiKeyMiddleware = (req, res, next) => {
+  const apiKey = req.headers['x-api-key'];
+  const VALID_API_KEY = process.env.API_KEY;
+
+  if (apiKey !== VALID_API_KEY) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+
+  next();
+};
+
 const client = new Client({
   authStrategy: new LocalAuth({ dataPath: './session' }),
   puppeteer: {
@@ -38,7 +49,7 @@ client.on('disconnected', (reason) => {
 client.initialize();
 
 // Ruta para enviar mensajes
-app.post('/send', async (req, res) => {
+app.post('/send',apiKeyMiddleware, async (req, res) => {
   const { number, text } = req.body;
 
   if (!number || !text) {
