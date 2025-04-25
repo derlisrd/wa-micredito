@@ -1,51 +1,61 @@
-const express = require('express');
-const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode-terminal');
+import express from 'express';
+import whatsapp from 'whatsapp-web.js';
+const { Client, LocalAuth } = whatsapp;
+import qrcode from 'qrcode-terminal';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const app = express();
-const PORT = 3000;
-
 app.use(express.json());
 
-// Inicializa el cliente de WhatsApp
 const client = new Client({
-  authStrategy: new LocalAuth()
+  authStrategy: new LocalAuth({ dataPath: './session' }),
+  puppeteer: {
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  }
 });
 
-// Muestra el QR para iniciar sesión
-client.on('qr', qr => {
-  console.log('📲 Escanea el siguiente QR con tu WhatsApp:');
+client.on('qr', (qr) => {
+  console.log('🔐 Escaneá este QR con WhatsApp:');
   qrcode.generate(qr, { small: true });
 });
 
-// Indica que el bot está listo
+
 client.on('ready', () => {
-  console.log('✅ Bot conectado a WhatsApp');
+  console.log('✅ Cliente conectado a WhatsApp');
 });
 
-// Endpoint para enviar mensaje
-app.post('/send-message', async (req, res) => {
+client.on('auth_failure', () => {
+  console.error('❌ Fallo de autenticación');
+});
+
+client.on('disconnected', (reason) => {
+  console.log('❌ Desconectado:', reason);
+});
+
+client.initialize();
+
+// Ruta para enviar mensajes
+app.post('/send', async (req, res) => {
   const { number, text } = req.body;
 
   if (!number || !text) {
-    return res.status(400).json({ success: false, message: 'Falta número o mensaje.' });
+    return res.status(400).json({ success: false, message: 'Faltan datos' });
   }
-
-  const formattedNumber = number.includes('@c.us') ? number : number.replace('+', '') + '@c.us';
 
   try {
-    await client.sendMessage(formattedNumber, text);
-    return res.status(200).json({ success: true, message: 'Mensaje enviado.' });
-  } catch (error) {
-    console.error('❌ Error al enviar el mensaje:', error);
-    return res.status(500).json({ success: false, message: 'Error al enviar el mensaje.' });
+    const fullNumber = number.includes('@c.us') ? number : number.replace(/\D/g, '') + '@c.us';
+    await client.sendMessage(fullNumber, text);
+    res.json({ success: true, message: 'Mensaje enviado' });
+  } catch (err) {
+    console.error('❌ Error al enviar mensaje:', err);
+    res.status(500).json({ success: false, message: 'Error al enviar mensaje' });
   }
 });
 
-// Inicia el servidor
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
+  console.log(`🚀 Servidor API WhatsApp corriendo en http://localhost:${PORT}`);
 });
-
-// Inicia WhatsApp
-client.initialize();
