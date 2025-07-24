@@ -55,7 +55,7 @@ client.on('message', async (message) => {
   console.log(`Mensaje recibido de ${message.from}: ${message.body}`);
 
   // Mensaje de respuesta predefinido
-  const responseMessage = 'Por favor comuniquese con Atencion al cliente 0985713544';
+  const responseMessage = 'Por favor comuniquese con ATC 0985713544';
 
   try {
     // Envía el mensaje de respuesta al remitente del mensaje original
