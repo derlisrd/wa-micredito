@@ -47,31 +47,6 @@ client.on('disconnected', (reason) => {
 
 
 
-client.on('message', async (message) => {
-  // Ignorar mensajes enviados por el propio bot para evitar bucles infinitos
-  if (message.fromMe) {
-    return;
-  }
-
-  // Ignorar mensajes si provienen de un grupo
-  if (message.isGroup) {
-    console.log(`Mensaje recibido en grupo de ${message.from}: ${message.body} (Ignorado)`);
-    return;
-  }
-
-  console.log(`Mensaje recibido en privado de ${message.from}: ${message.body}`);
-
-  // Mensaje de respuesta predefinido
-  const responseMessage = 'Por favor comuniquese con ATC 0985713544';
-
-  try {
-    // Envía el mensaje de respuesta al remitente del mensaje original
-    await client.sendMessage(message.from, responseMessage);
-    console.log(`Respuesta enviada a ${message.from}: ${responseMessage}`);
-  } catch (err) {
-    console.error(`Error al enviar la respuesta a ${message.from}:`, err);
-  }
-});
 
 
 client.initialize();
