@@ -1,0 +1,75 @@
+# Ejemplo de Nginx para exponer wa-micredito en un VPS (Ubuntu/Debian).
+#
+# Instalación:
+#   sudo cp deploy/nginx.conf.example /etc/nginx/sites-available/wa-micredito
+#   sudo sed -i 's/wa.tudominio.com/TU_DOMINIO/g' /etc/nginx/sites-available/wa-micredito
+#   sudo ln -s /etc/nginx/sites-available/wa-micredito /etc/nginx/sites-enabled/
+#   sudo certbot --nginx -d TU_DOMINIO
+#   sudo nginx -t && sudo systemctl reload nginx
+#
+# Requisitos:
+#   - La app escucha SOLO en local: HOST=127.0.0.1 y PORT=3005 en .env
+#     (ajustá 3005 si usás otro PORT)
+#   - TRUST_PROXY=loopback en .env (para que el rate limit use la IP real)
+#   - El puerto 3005 NO se abre en el firewall; solo 80/443.
+
+# Segunda capa de límite (la app ya limita por IP). Ajustar si hace falta.
+limit_req_zone $binary_remote_addr zone=wa_general:10m rate=10r/s;
+limit_req_zone $binary_remote_addr zone=wa_send:10m rate=1r/s;
+
+upstream wa_micredito {
+    server 127.0.0.1:3005;
+    keepalive 16;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name wa.tudominio.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name wa.tudominio.com;
+
+    ssl_certificate     /etc/letsencrypt/live/wa.tudominio.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/wa.tudominio.com/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    server_tokens off;
+    client_max_body_size 2m;
+
+    limit_req zone=wa_general burst=40 nodelay;
+    limit_req_status 429;
+
+    # Envío de mensajes: límite más estricto.
+    location = /send {
+        limit_req zone=wa_send burst=10 nodelay;
+        include proxy_params;
+        proxy_pass http://wa_micredito;
+        proxy_read_timeout 60s;
+    }
+
+    location = /send/grupo-noti {
+        limit_req zone=wa_send burst=10 nodelay;
+        include proxy_params;
+        proxy_pass http://wa_micredito;
+        proxy_read_timeout 60s;
+    }
+
+    # /health, /status y /restart.
+    location / {
+        include proxy_params;
+        proxy_pass http://wa_micredito;
+    }
+
+    # Si `include proxy_params` no existe en tu distro, reemplazalo por:
+    #   proxy_set_header Host $host;
+    #   proxy_set_header X-Real-IP $remote_addr;
+    #   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    #   proxy_set_header X-Forwarded-Proto $scheme;
+    #   proxy_http_version 1.1;
+}

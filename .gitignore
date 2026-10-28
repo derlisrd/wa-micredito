@@ -6,3 +6,5 @@ pnpm-lock.yaml
 session
 .env
 .env*
+!.env.example
+logs

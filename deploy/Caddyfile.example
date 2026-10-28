@@ -1,0 +1,19 @@
+# Alternativa a Nginx: Caddy (TLS automático con Let's Encrypt).
+#
+#   sudo cp deploy/Caddyfile.example /etc/caddy/Caddyfile
+#   sudo sed -i 's/wa.tudominio.com/TU_DOMINIO/g' /etc/caddy/Caddyfile
+#   sudo systemctl reload caddy
+#
+# La app debe escuchar en 127.0.0.1:3005 (HOST=127.0.0.1) y
+# TRUST_PROXY=loopback en .env.
+
+wa.tudominio.com {
+    encode zstd gzip
+
+    reverse_proxy 127.0.0.1:3005 {
+        header_up X-Real-IP {remote_host}
+        transport http {
+            keepalive 16
+        }
+    }
+}
