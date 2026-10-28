@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: "wa-micredito",
+      name: "wa",
       script: "index.js",
       cwd: __dirname,
       exec_mode: "fork",
